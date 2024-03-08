@@ -1,6 +1,6 @@
 const express = require('express')
 const {createServer} = require('http')
-const {Server} = require('ws')
+const {Server, WebSocket} = require('ws')
 const jsonTo = require("../utils/node/tool");
 
 const app = express()
@@ -15,12 +15,13 @@ let useritem = {
     timestamp: 0,
     uuid: '',
     ip: '',
+    id: '',
 }
 wss.on('connection', (ws, req) => {
     const ip = req.socket.remoteAddress
     console.log(ip)
     useritem.ip = ip
-    ws.on('message', (message) => {
+    ws.on('message', (message, isBinary) => {
         console.log(`服务器收到消息: ${message}`)
         // 获取uuid
         // 创建一个新的 Buffer 对象，并传入 data 数组
@@ -31,6 +32,10 @@ wss.on('connection', (ws, req) => {
         useritem.uuid = jsonTo.jsonStringToObject(stringData)?.uuid.toString();
         ws.send(JSON.stringify(useritem), {binary: false})
         // console.log(useritem)
+        // 保存消息
+        console.log(jsonTo.jsonStringToObject(stringData))
+        useritem.message = jsonTo.jsonStringToObject(stringData)?.message?.toString();
+        useritem.id = jsonTo.jsonStringToObject(stringData)?.id?.toString();
         // 判断用户是否存在
         const flag = userinfo.some(item => {
             return item.uuid === useritem.uuid;
@@ -40,6 +45,12 @@ wss.on('connection', (ws, req) => {
             userinfo.push(useritem)
         }
         console.log(userinfo)
+        console.log(isBinary, ':================')
+        wss.clients.forEach(function each(client) {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(useritem), {binary: isBinary});
+            }
+        });
     })
     console.log(useritem)
     ws.send('通信返回:正常 (0;0）!')
